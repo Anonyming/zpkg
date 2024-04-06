@@ -1,4 +1,4 @@
-# zpkg [![Fork ome on GitHub](https://github.blog/wp-content/uploads/2008/12/forkme_right_orange_ff7600.png?resize=149%2C149)](https://github.com/ihucos/zpkg)
+# zpkg [![Fork ome on GitHub](https://github.blog/wp-content/uploads/2008/12/forkme_right_orange_ff7600.png?resize=149%2C149)](https://github.com/Anonyming/zpkg)
 
 With zpkg you can install and use programs from other distributions
 
@@ -10,7 +10,7 @@ With zpkg you can install and use programs from other distributions
 
 ## Install
 
-    $ curl -Lf https://github.com/ihucos/zpkg/releases/download/0.2.5/zpkg.zpkg | tar -xJf - -C ~/.local
+    $ curl -Lf https://github.com/Anonyming/zpkg/releases/download/0.2.5/zpkg.zpkg | tar -xJf - -C ~/.local
 
 ## What does zpkg do?
 
@@ -49,7 +49,7 @@ It is possible to repackage added programs into standalone zpkg packages. These 
     
     $ zpkg freeze
     zpkg add gimp --from alpine --apk gimp
-    zpkg add zpkg --from-github ihucos/zpkg
+    zpkg add zpkg --from-github Anonyming/zpkg
     
     $ zpkg rm gimp
     
@@ -145,13 +145,15 @@ Since zpkg is packaged with zpkg, running _zpkg upgrade_ will upgrade it.
 
 ### Can I contribute?
 
-[Absolutely](http://github.com/ihucos/zpkg)
+[Absolutely](http://github.com/Anonyming/zpkg)
 
 ## Thank you
 
-If you like zpkg, [star it on GitHub](https://github.com/ihucos/zpkg). Help others
-by [reporting any issue](https://github.com/ihucos/zpkg/issues). Feel free
-to [contact me directly](mailto:mailto:%6D%61%69%6C%40%69%72%61%65%2E%6D%65) for anything.
+If you like zpkg, [star it on GitHub](https://github.com/Anonyming/zpkg). Help others
+by [reporting any issue](https://github.com/Anonyming/zpkg/issues). Feel free
+to [contact me directly](mailto:nick.zamega@yandex.ru&subject=Zpkg?body=I%20searched%20a%20bud,%20have%20an%20idea,%20want%20to%20help%20etc.?cc=%6D%61%69%6C%40%69%72%61%65%2%6ED%65)
+for anything.
+to [contact me directly](mailto:mailto:) for anything.
 
 [Documentation external website](https://ihucos.github.io/zpkg/)
 

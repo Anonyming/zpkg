@@ -60,7 +60,7 @@ It is possible to repackage added programs into standalone zpkg packages. These 
 ## Usage
 
     USAGE
-        zpkg [-g|-l] {add,flush,freeze,ls,package,rebuild,rm,upgrade} ...
+        zpkg [-g|-l|-o|-r] {add,flush,freeze,ls,package,rebuild,rm,upgrade} ...
     
     SUBCOMMANDS
         add [PKG] BUILD-ARGS   builds and adds a package
@@ -78,6 +78,10 @@ It is possible to repackage added programs into standalone zpkg packages. These 
             affects the system globally
         --local, -l
             saves packages in cwd under ./zpkg
+        --opt, -o 
+            installs programs in /opt directory
+        --root, -r
+            installs programs in system RootFS. CAN CORRUPT YOUR SYSTEM, USE IT FOR YOUR OWN RISK!!!
     
     BUILD ARGUMENTS
         --from, -f

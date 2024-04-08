@@ -80,6 +80,7 @@ if len(sys.argv) > 1:
                 zpkg_install_dir = "/opt"
                 zpkg_cache_dir = "/var/cache/zpkg"
             else:
+                sys.stderr.write(f"zpkg incorrect command: try to install to /opt without permission to write here")
                 raise '''Need superuser access to write in /opt.
                 Try to run 'sudo zpkg ...' or login as root'''
         case '-r' | '--root':
@@ -88,6 +89,7 @@ if len(sys.argv) > 1:
                 zpkg_install_dir = "/"
                 zpkg_cache_dir = "/var/cache/zpkg"
             else:
+                sys.stderr.write(f"zpkg incorrect command: try to install to RootFS without permission to write here")
                 raise '''Need superuser access to write in RootFS.
                 Try to run 'sudo zpkg ...' or login as root'''
 else:
@@ -122,9 +124,8 @@ def usage():
 
 
 def die(msg):
-    print("zpkg error: {}".format(msg), file=sys.stderr)
-    sys.exit(1)
-
+    sys.stderr.write(f'zpkg error: {msg}')
+    raise f'zpkg error: {msg}'
 
 def info(msg):
     print("zpkg: {}".format(msg), file=sys.stderr)

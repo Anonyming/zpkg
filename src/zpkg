@@ -63,7 +63,6 @@ BOOTSTRAP_SCRIPT = open(join(dir_path, 'bootstrap.sh')).read()
 
 os.environ["PATH"] = ":".join([join(dir_path, "plash/bin")] +
                               os.environ.get("PATH").split(":"))
-
 if len(sys.argv) > 1:
     match sys.argv[1]:
         case '-g' | '--global':
@@ -187,7 +186,7 @@ if not len(sys.argv) >= 2:
 elif sys.argv[1] in ["-h", "--help", "help"]:
     usage()
 elif not sys.argv[1] in [
-        "add", "ls", "freeze", "rebuild", "rm", "flush", "package", "upgrade", "unfreeze"
+    "add", "ls", "freeze", "rebuild", "rm", "flush", "package", "upgrade", "unfreeze"
 ]:
     die("no such subcommand, try --help")
 
@@ -197,211 +196,217 @@ os.makedirs(BINDIR, exist_ok=True)
 if sys.argv[1] not in ("package", "ls"):
     plash_call("init")
 
-#####
-# zpkg ls
-#####
-if sys.argv[1] == "ls":
-    for pkg in os.listdir(DATADIR):
-        print(pkg)
+######################################################
+#                COMMAND PARSING                     #
+######################################################
 
-#####
-# zpkg freeze
-#####
-elif sys.argv[1] == "freeze":
-    for pkg in os.listdir(DATADIR):
+match sys.argv[1]:
+
+    #####
+    # zpkg ls
+    #####
+    case "ls":
+        for pkg in os.listdir(DATADIR):
+            print(pkg)
+
+    #####
+    # zpkg freeze
+    #####
+    case "freeze":
+        for pkg in os.listdir(DATADIR):
+            try:
+                with open(join(DATADIR, pkg, 'buildargs')) as f:
+                    args = f.read()
+            except FileNotFoundError:
+                continue
+            print('zpkg add {} {}'.format(pkg, args))
+
+    #####
+    # zpkg unfreeze
+    #####
+    case "unfreeze":
+        try:
+            freezed_file = sys.argv[2]
+        except IndexError:
+            die("usage: zpkg [-g|-l|o|-r] unfreeze FREEZED-FILE")
+        try:
+            with open(freezed_file, "r") as f:
+                freezed = f.readlines()
+        except OSError as exc:
+            die(exc)
+
+        tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA, "tmp"))
+        os.environ["ZPKG_INSTALL_DIR"] = tmpdir
+        for freeze_line in freezed:
+            cmd = shlex.split(freeze_line[:-1])
+            if not cmd[:2] == ["zpkg", "add"]:
+                die('freeze file must start with: zpkg add ...')
+            p = subprocess.Popen([sys.argv[0], 'add'] + cmd[2:])
+            exitcode = p.wait()
+            if exitcode:
+                sys.exit(exitcode)
+
+        src = tmpdir
+        dst = expanduser(zpkg_install_dir)
+        info("rename {} => {}".format(src, dst))
+        swap_paths(src.encode(), dst.encode())
+
+    #####
+    # zpkg rebuild
+    #####
+    case "rebuild":
+
+        try:
+            pkg = sys.argv[2]
+        except IndexError:
+            die("usage: zpkg [-g|-l|-o|-r] rebuild PKG")
+
+        if not os.path.exists(join(DATADIR, pkg)):
+            die("package {} is not installed".format(repr(pkg)))
+
         try:
             with open(join(DATADIR, pkg, 'buildargs')) as f:
-                args = f.read()
+                build_args = shlex.split(f.read())
         except FileNotFoundError:
-            continue
-        print('zpkg add {} {}'.format(pkg, args))
+            info("skip {} (no build steps)".format(pkg))
+        else:
+            tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA,
+                                               "tmp"))  # reuse plash's tmp
+            cont = plash_call("map", pkg)
+            if cont:
+                plash_call("rm", cont)
+                plash_call("clean")
 
-#####
-# zpkg unfreeze
-#####
-elif sys.argv[1] == "unfreeze":
-    try:
-        freezed_file = sys.argv[2]
-    except IndexError:
-        die("usage: zpkg [-g|-l|o|-r] unfreeze FREEZED-FILE")
-    try:
-        with open(freezed_file, "r") as f:
-            freezed = f.readlines()
-    except OSError as exc:
-        die(exc)
+            builded = plash_call("build", "--run", BOOTSTRAP_SCRIPT, "--layer",
+                                 "--run", "", "--layer", *build_args)
+            plash_call("shallow-copy", builded, tmpdir)
+            swap_paths(tmpdir.encode(), join(DATADIR, pkg, 'rootfs').encode())
+            plash_call("map", pkg, builded)
 
-    tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA, "tmp"))
-    os.environ["ZPKG_INSTALL_DIR"] = tmpdir
-    for freeze_line in freezed:
-        cmd = shlex.split(freeze_line[:-1])
-        if not cmd[:2] == ["zpkg", "add"]:
-            die('freeze file must start with: zpkg add ...')
-        p = subprocess.Popen([sys.argv[0], 'add'] + cmd[2:])
-        exitcode = p.wait()
-        if exitcode:
-            sys.exit(exitcode)
-
-    src = tmpdir
-    dst = expanduser(zpkg_install_dir)
-    info("rename {} => {}".format(src, dst))
-    swap_paths(src.encode(), dst.encode())
-
-#####
-# zpkg rebuild
-#####
-elif sys.argv[1] == "rebuild":
-
-    try:
-        pkg = sys.argv[2]
-    except IndexError:
-        die("usage: zpkg [-g|-l|-o|-r] rebuild PKG")
-
-    if not os.path.exists(join(DATADIR, pkg)):
-        die("package {} is not installed".format(repr(pkg)))
-
-    try:
-        with open(join(DATADIR, pkg, 'buildargs')) as f:
-            build_args = shlex.split(f.read())
-    except FileNotFoundError:
-        info("skip {} (no build steps)".format(pkg))
-    else:
-        tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA,
-                                           "tmp"))  # reuse plash's tmp
-        cont = plash_call("map", pkg)
+    #####
+    # zpkg rm
+    #####
+    case "rm":
+        if len(sys.argv) < 3:
+            die("rm PKG")
+        assert_is_installed(sys.argv[2])
+        cont = plash_call("map", sys.argv[2])
         if cont:
             plash_call("rm", cont)
             plash_call("clean")
 
+        if sys.argv[2] == "zpkg":
+            die("can't do; try: rm {} {} -rf".format(
+                join(DATADIR, sys.argv[2]),
+                join(BINDIR, sys.argv[2])))
+            sys.exit(1)
+
+        tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA, "tmp"))
+        os.rename(join(DATADIR, sys.argv[2]), tmpdir)
+        os.execlp("plash", "plash", "sudo", "rm", "-rf", tmpdir,
+                  join(BINDIR, sys.argv[2]))
+
+    #####
+    # zpkg flush
+    #####
+    case "flush":
+        plash_call("purge", '--yes')
+
+    #####
+    # zpkg upgrade
+    #####
+    case "upgrade":
+        plash_call("purge", '--yes')
+        for pkg in os.listdir(DATADIR):
+            p = subprocess.Popen([sys.argv[0], 'rebuild', pkg])
+            info("build {}".format(pkg))
+            exitcode = p.wait()
+            if exitcode:
+                sys.exit(exitcode)
+
+    #####
+    # zpkg package
+    #####
+    case "package":
+        if len(sys.argv) < 4:
+            die("usage: zpkg [-g|-l|-o|-r] package PROGRAM OUTFILE")
+        assert_is_installed(sys.argv[2])
+        plash_call("sudo", "tar", "-C", os.path.dirname(BINDIR), "-cJf",
+                   sys.argv[3], join("bin", sys.argv[2]),
+                   join("lib/zpkg", sys.argv[2]))
+        print(("Install package locally:\n"
+               "tar -xf {0} -C ~/.local \n"
+               "\n"
+               "Install package globally:\n"
+               "tar -xf {0} -C /usr/local").format(shlex.quote(sys.argv[3])))
+
+    #####
+    # zpkg add
+    #####
+    case "add":
+        if len(sys.argv) <= 2:
+            die("usage: zpkg [-g|-l|-o|-r] add [PKG] BUILD-ARGS")
+
+        if sys.argv[2].startswith("-"):
+            sys.argv.insert(2, "?")
+
+        if not sys.argv[3:]:
+            die("zpkg add: build arguments missing")
+
+        if not sys.argv[3].startswith("-"):
+            die("zpkg add: build argument cannot be positional argument")
+
+        if sys.argv[2] != '?' and os.path.exists(join(DATADIR, sys.argv[2])):
+            die("package {} is already installed".format(repr(sys.argv[2])))
+
+        tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA, "tmp"))  # reuse plash's tmp
         builded = plash_call("build", "--run", BOOTSTRAP_SCRIPT, "--layer",
-                             "--run", "", "--layer", *build_args)
-        plash_call("shallow-copy", builded, tmpdir)
-        swap_paths(tmpdir.encode(), join(DATADIR, pkg, 'rootfs').encode())
-        plash_call("map", pkg, builded)
+                             "--run", "", "--layer", *sys.argv[2:])
+        plash_call("shallow-copy", builded, join(tmpdir, "rootfs"))
+        os.chmod(join(tmpdir, "rootfs"), 0o755)
+        os.mkdir(join(tmpdir, "rootfs", "host"))
+        nodepath = plash_call("nodepath", builded)
+        base = nodepath.split("/layer/")[1].split("/")[1]
+        orig_cmds = set(plash_call('run', base, *LIST_ALL_CMD).splitlines())
+        after_cmds = set(plash_call('run', builded, *LIST_ALL_CMD).splitlines())
+        new_cmds = sorted([os.path.basename(i) for i in (after_cmds - orig_cmds)])
 
-#####
-# zpkg rm
-#####
-elif sys.argv[1] == "rm":
-    if len(sys.argv) < 3:
-        die("rm PKG")
-    assert_is_installed(sys.argv[2])
-    cont = plash_call("map", sys.argv[2])
-    if cont:
-        plash_call("rm", cont)
-        plash_call("clean")
+        if not new_cmds:
+            die("no new commands found")
+        if sys.argv[2] == "?":
+            sys.argv[2] = very_magic_guess(new_cmds, sys.argv[3:])
+            info("guessed your command name: {}".format(sys.argv[2]))
+        elif sys.argv[2] not in new_cmds:
+            die("command {} not found after build finished, but there is: {}".
+                format(repr(sys.argv[2]), ' '.join(new_cmds)))
+        if os.path.exists(join(DATADIR, sys.argv[2])):
+            die("package {} is already installed".format(repr(sys.argv[2])))
 
-    if sys.argv[2] == "zpkg":
-        die("can't do; try: rm {} {} -rf".format(
-                                      join(DATADIR, sys.argv[2]),
-                                      join(BINDIR, sys.argv[2])))
-        sys.exit(1)
+        with open(join(tmpdir, 'buildargs'), 'w') as f:
+            f.write(' '.join(shlex.quote(i) for i in sys.argv[3:]))
 
-    tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA, "tmp"))
-    os.rename(join(DATADIR, sys.argv[2]), tmpdir)
-    os.execlp("plash", "plash", "sudo", "rm", "-rf", tmpdir,
-               join(BINDIR, sys.argv[2]))
-
-#####
-# zpkg flush
-#####
-elif sys.argv[1] == "flush":
-    plash_call("purge", '--yes')
-
-#####
-# zpkg upgrade
-#####
-elif sys.argv[1] == "upgrade":
-    plash_call("purge", '--yes')
-    for pkg in os.listdir(DATADIR):
-        p = subprocess.Popen([sys.argv[0], 'rebuild', pkg])
-        info("build {}".format(pkg))
-        exitcode = p.wait()
-        if exitcode:
-            sys.exit(exitcode)
-
-#####
-# zpkg package
-#####
-elif sys.argv[1] == "package":
-    if len(sys.argv) < 4:
-        die("usage: zpkg [-g|-l|-o|-r] package PROGRAM OUTFILE")
-    assert_is_installed(sys.argv[2])
-    plash_call("sudo", "tar", "-C", os.path.dirname(BINDIR), "-cJf",
-               sys.argv[3], join("bin", sys.argv[2]),
-               join("lib/zpkg", sys.argv[2]))
-    print(("Install package locally:\n"
-           "tar -xf {0} -C ~/.local \n"
-           "\n"
-           "Install package globally:\n"
-           "tar -xf {0} -C /usr/local").format(shlex.quote(sys.argv[3])))
-
-#####
-# zpkg add
-#####
-elif sys.argv[1] == "add":
-    if len(sys.argv) <= 2:
-        die("usage: zpkg [-g|-l|-o|-r] add [PKG] BUILD-ARGS")
-
-    if sys.argv[2].startswith("-"):
-        sys.argv.insert(2, "?")
-
-    if not sys.argv[3:]:
-        die("zpkg add: build arguments missing")
-
-    if not sys.argv[3].startswith("-"):
-        die("zpkg add: build argument cannot be positional argument")
-
-    if sys.argv[2] != '?' and os.path.exists(join(DATADIR, sys.argv[2])):
-        die("package {} is already installed".format(repr(sys.argv[2])))
-
-    tmpdir = tempfile.mkdtemp(dir=join(PLASH_DATA, "tmp"))  # reuse plash's tmp
-    builded = plash_call("build", "--run", BOOTSTRAP_SCRIPT, "--layer",
-                         "--run", "", "--layer", *sys.argv[2:])
-    plash_call("shallow-copy", builded, join(tmpdir, "rootfs"))
-    os.chmod(join(tmpdir, "rootfs"), 0o755)
-    os.mkdir(join(tmpdir, "rootfs", "host"))
-    nodepath = plash_call("nodepath", builded)
-    base = nodepath.split("/layer/")[1].split("/")[1]
-    orig_cmds = set(plash_call('run', base, *LIST_ALL_CMD).splitlines())
-    after_cmds = set(plash_call('run', builded, *LIST_ALL_CMD).splitlines())
-    new_cmds = sorted([os.path.basename(i) for i in (after_cmds - orig_cmds)])
-
-    if not new_cmds:
-        die("no new commands found")
-    if sys.argv[2] == "?":
-        sys.argv[2] = very_magic_guess(new_cmds, sys.argv[3:])
-        info("guessed your command name: {}".format(sys.argv[2]))
-    elif sys.argv[2] not in new_cmds:
-        die("command {} not found after build finished, but there is: {}".
-            format(repr(sys.argv[2]), ' '.join(new_cmds)))
-    if os.path.exists(join(DATADIR, sys.argv[2])):
-        die("package {} is already installed".format(repr(sys.argv[2])))
-
-    with open(join(tmpdir, 'buildargs'), 'w') as f:
-        f.write(' '.join(shlex.quote(i) for i in sys.argv[3:]))
-
-    targetdir = join(DATADIR, sys.argv[2])
-    launcher = join(BINDIR, sys.argv[2])
-    os.mkdir(join(tmpdir, "bin"))
-    shutil.copy2(RUNNER_FILE, join(tmpdir, "bin", sys.argv[2]))
-    os.link(join(tmpdir, "bin", sys.argv[2]),
+        targetdir = join(DATADIR, sys.argv[2])
+        launcher = join(BINDIR, sys.argv[2])
+        os.mkdir(join(tmpdir, "bin"))
+        shutil.copy2(RUNNER_FILE, join(tmpdir, "bin", sys.argv[2]))
+        os.link(join(tmpdir, "bin", sys.argv[2]),
                 join(tmpdir, "bin", 'sh'))
-    os.link(join(tmpdir, "bin", sys.argv[2]),
+        os.link(join(tmpdir, "bin", sys.argv[2]),
                 join(tmpdir, "bin", 'env'))
-    os.rename(tmpdir, targetdir)
-    os.chmod(targetdir, 0o755)
-    try:
-        os.unlink(launcher)
-    except FileNotFoundError:
-        pass
-    os.symlink(join("../lib/zpkg", sys.argv[2], "bin", sys.argv[2]), launcher)
+        os.rename(tmpdir, targetdir)
+        os.chmod(targetdir, 0o755)
+        try:
+            os.unlink(launcher)
+        except FileNotFoundError:
+            pass
+        os.symlink(join("../lib/zpkg", sys.argv[2], "bin", sys.argv[2]), launcher)
 
-    home = expanduser('~')
-    datadir = targetdir.replace(home, '~')
-    launcher = launcher.replace(home, '~')
-    info("installed {} to {}".format(
-        sys.argv[2], launcher))
-    #print("linked to: {}".format(launcher))
+        home = expanduser('~')
+        datadir = targetdir.replace(home, '~')
+        launcher = launcher.replace(home, '~')
+        info("installed {} to {}".format(
+            sys.argv[2], launcher))
+        # print("linked to: {}".format(launcher))
 
-    # map it, so it can be deleted
-    plash_call("map", sys.argv[2], builded)
+        # map it, so it can be deleted
+        plash_call("map", sys.argv[2], builded)

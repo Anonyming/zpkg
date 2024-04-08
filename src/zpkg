@@ -64,30 +64,32 @@ BOOTSTRAP_SCRIPT = open(join(dir_path, 'bootstrap.sh')).read()
 os.environ["PATH"] = ":".join([join(dir_path, "plash/bin")] +
                               os.environ.get("PATH").split(":"))
 
-if len(sys.argv) > 1 and sys.argv[1] in ('-g', '--global'):
-    sys.argv.pop(1)
-    zpkg_install_dir = "/usr/local/"
-    zpkg_cache_dir = "/var/cache/zpkg"
-elif len(sys.argv) > 1 and sys.argv[1] in ('-l', '--local'):
-    sys.argv.pop(1)
-    zpkg_install_dir = ".local"
-    zpkg_cache_dir = "~/.cache/zpkg"
-elif len(sys.argv) > 1 and sys.argv[1] in ('-o', '--opt'):
-    if os.access('/opt', os.W_OK):
-        sys.argv.pop(1)
-        zpkg_install_dir = "/opt"
-        zpkg_cache_dir = "/var/cache/zpkg"
-    else:
-        raise '''Need superuser access to write in /opt.
-        Try to run 'sudo zpkg ...' or login as root'''
-elif len(sys.argv) > 1 and sys.argv[1] in ('-r', '--root'):
-    if os.access('/', os.W_OK):
-        sys.argv.pop(1)
-        zpkg_install_dir = "/"
-        zpkg_cache_dir = "/var/cache/zpkg"
-    else:
-        raise '''Need superuser access to write in RootFS.
-        Try to run 'sudo zpkg ...' or login as root'''
+if len(sys.argv) > 1:
+    match sys.argv[1]:
+        case '-g' | '--global':
+            sys.argv.pop(1)
+            zpkg_install_dir = "/usr/local/"
+            zpkg_cache_dir = "/var/cache/zpkg"
+        case '-l' | '--local':
+            sys.argv.pop(1)
+            zpkg_install_dir = ".local"
+            zpkg_cache_dir = "~/.cache/zpkg"
+        case '-o' | '--opt':
+            if os.access('/opt', os.W_OK):
+                sys.argv.pop(1)
+                zpkg_install_dir = "/opt"
+                zpkg_cache_dir = "/var/cache/zpkg"
+            else:
+                raise '''Need superuser access to write in /opt.
+                Try to run 'sudo zpkg ...' or login as root'''
+        case '-r' | '--root':
+            if os.access('/', os.W_OK):
+                sys.argv.pop(1)
+                zpkg_install_dir = "/"
+                zpkg_cache_dir = "/var/cache/zpkg"
+            else:
+                raise '''Need superuser access to write in RootFS.
+                Try to run 'sudo zpkg ...' or login as root'''
 else:
     zpkg_install_dir = "~/.local"
     zpkg_cache_dir = "~/.cache/zpkg"

@@ -19,7 +19,7 @@ ARGUMENTS
     --local, -l
         saves packages in cwd under ./zpkg
     --opt, -o
-        installs programs in /opt directory
+        installs programs in /opt directory (default)
     --root, -r
         installs programs in system RootFS. CAN CORRUPT YOUR SYSTEM, USE IT FOR YOUR OWN RISK!!!
 
@@ -91,8 +91,8 @@ if len(sys.argv) > 1:
                 raise '''Need superuser access to write in RootFS.
                 Try to run 'sudo zpkg ...' or login as root'''
 else:
-    zpkg_install_dir = "~/.local"
-    zpkg_cache_dir = "~/.cache/zpkg"
+    zpkg_install_dir = "/opt"
+    zpkg_cache_dir = "/var/cache/zpkg"
 
 # try to overwrite with env vars
 try:

@@ -10,7 +10,7 @@ With zpkg you can install and use programs from other distributions
 
 ## Install
 
-    $ curl -Lf https://github.com/Anonyming/zpkg/releases/download/0.2.5/zpkg.zpkg | tar -xJf - -C ~/.local
+    $ curl -Lf https://github.com/Anonyming/zpkg/releases/download/0.2.5/zpkg.zpkg | tar -xJf - -C /opt
 
 ## What does zpkg do?
 
@@ -39,7 +39,6 @@ It is possible to repackage added programs into standalone zpkg packages. These 
 ## What else should I know?
 
 * For package managers that need multi user support - like _apt_ - you need _newuidmap_ installed and _/etc/subuid_ configured when running zpkg unprivileged (Done in Ubuntu).
-* Packages should never change files of it's base system.
 
 ## More examples
 
@@ -79,7 +78,7 @@ It is possible to repackage added programs into standalone zpkg packages. These 
         --local, -l
             saves packages in cwd under ./zpkg
         --opt, -o 
-            installs programs in /opt directory
+            installs programs in /opt directory (default)
         --root, -r
             installs programs in system RootFS. CAN CORRUPT YOUR SYSTEM, USE IT FOR YOUR OWN RISK!!!
     

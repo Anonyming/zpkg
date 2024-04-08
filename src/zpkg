@@ -94,15 +94,15 @@ else:
     zpkg_install_dir = "/opt"
     zpkg_cache_dir = "/var/cache/zpkg"
 
-# try to overwrite with env vars
-try:
-    zpkg_install_dir = os.environ["ZPKG_INSTALL_DIR"]
-except KeyError:
-    pass
-try:
-    zpkg_cache_dir = os.environ["ZPKG_CACHE_DIR"]
-except KeyError:
-    pass
+    # try to overwrite with env vars
+    try:
+        zpkg_install_dir = os.environ["ZPKG_INSTALL_DIR"]
+    except KeyError:
+        pass
+    try:
+        zpkg_cache_dir = os.environ["ZPKG_CACHE_DIR"]
+    except KeyError:
+        pass
 
 DATADIR = expanduser(join(zpkg_install_dir, "lib/zpkg"))
 BINDIR = expanduser(join(zpkg_install_dir, "bin"))
